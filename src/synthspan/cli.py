@@ -7,11 +7,11 @@ import random
 import sys
 
 from synthspan import __version__
+from synthspan.augment import apply, ocr, punctuation, random_case, typos
 from synthspan.balance import dedupe, label_counts
 from synthspan.gazetteer import Gazetteer
 from synthspan.generate import generate
 from synthspan.template import Template
-from synthspan.typos import augment
 from synthspan.writers import write
 
 
@@ -23,9 +23,18 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     examples = generate(
         gaz, templates, args.n, rng=rng, balanced=args.balanced, linked=not args.independent
     )
-    # Augment first so typos create surface variety, THEN dedupe exact duplicates.
+    # Augment first so noise creates surface variety, THEN dedupe exact duplicates.
+    augmenters = []
     if args.typo_rate > 0:
-        examples = augment(examples, rate=args.typo_rate, rng=rng, typo_entities=args.typo_entities)
+        augmenters.append(typos(args.typo_rate))
+    if args.case_rate > 0:
+        augmenters.append(random_case(args.case_rate))
+    if args.ocr_rate > 0:
+        augmenters.append(ocr(args.ocr_rate))
+    if args.punct_rate > 0:
+        augmenters.append(punctuation(args.punct_rate))
+    if augmenters:
+        examples = apply(examples, augmenters, rng=rng, augment_entities=args.typo_entities)
     if args.dedupe:
         examples = dedupe(examples)
 
@@ -49,7 +58,10 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--out", required=True, help="Output file path")
     g.add_argument("--format", choices=["jsonl", "conll", "spacy"], default="jsonl")
     g.add_argument("--typo-rate", type=float, default=0.0, help="Per-word typo probability (0-1)")
-    g.add_argument("--typo-entities", action="store_true", help="Allow typos inside entity spans")
+    g.add_argument("--case-rate", type=float, default=0.0, help="Per-letter random case-flip probability")
+    g.add_argument("--ocr-rate", type=float, default=0.0, help="Per-char OCR-confusable substitution probability")
+    g.add_argument("--punct-rate", type=float, default=0.0, help="Punctuation drop/duplicate probability")
+    g.add_argument("--typo-entities", action="store_true", help="Allow augmentation inside entity spans")
     g.add_argument("--balanced", action="store_true", help="Even coverage of templates/records")
     g.add_argument(
         "--independent",

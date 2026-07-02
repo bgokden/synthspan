@@ -44,8 +44,9 @@ synthspan generate \
 - **`--entities`** — CSV whose header names the labels; each row is a *linked*
   record so combinations stay consistent (`Amsterdam,Netherlands`).
 - **`--templates`** — one per line, with `{LABEL}` slots.
-- **`--typo-rate`** — per-word typo probability; spans are recomputed so labels
-  stay correct (add `--typo-entities` to also noise the entities themselves).
+- **augmenters** — `--typo-rate`, `--case-rate`, `--ocr-rate`, `--punct-rate`;
+  spans are recomputed so labels stay correct (add `--typo-entities` to also
+  noise the entities themselves).
 - **`--balanced`** — even coverage of templates and records.
 
 Output formats: `jsonl` (default), `conll` (BIO), `spacy`.
@@ -125,6 +126,29 @@ print(data[0].text, data[0].entities())
 Backends: `OllamaBackend` (local HTTP, zero deps) · `LlamaCppBackend` (GGUF grammars,
 `pip install synthspan[llama-cpp]`) · or implement `complete(prompt, schema) -> dict`
 for vLLM / any OpenAI-compatible endpoint. `FakeBackend` ships for offline tests.
+
+## Augmenters
+
+Augmentation is pluggable — an augmenter is just `(text, rng) -> str`. Built-ins:
+`typos`, `random_case`, `punctuation`, `ocr`. Compose any of them; the framework
+recomputes spans so labels never drift (entities are left clean by default).
+
+```python
+from synthspan import apply, typos, random_case, ocr
+
+noisy = apply(data, [typos(0.05), random_case(0.1), ocr(0.03)], rng=rng)
+```
+
+Adding your own is a few lines:
+
+```python
+def shout(rate=0.1):
+    def f(text, rng):
+        return "".join(c.upper() if rng.random() < rate else c for c in text)
+    return f
+
+apply(data, [shout(0.2)])
+```
 
 ## Diversity balancing (optional)
 
