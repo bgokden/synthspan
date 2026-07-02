@@ -30,6 +30,26 @@ guaranteed-correct spans — no manual labeling.
 pip install synthspan            # or: pip install -e . from source
 ```
 
+## Quickstart
+
+Run the end-to-end example ([`examples/quickstart.py`](examples/quickstart.py)) from
+the repo root:
+
+```bash
+python examples/quickstart.py
+```
+
+```
+1510 examples
+labels: {'CITY': 1510, 'COUNTRY': 1510}
+sample: The conference Will Be Held in Rotterdam (Netherlands) this yEar.
+        -> [('Rotterdam', 'CITY'), ('Netherlands', 'COUNTRY')]
+wrote data.jsonl and data.conll
+```
+
+It generates from a gazetteer + templates, adds typo/case/OCR noise (spans stay
+correct), de-duplicates, and writes both offset (JSONL) and BIO (CoNLL) datasets.
+
 ## CLI
 
 ```bash

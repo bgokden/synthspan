@@ -7,7 +7,9 @@ import re
 
 from synthspan.types import Example
 
-_TOKEN = re.compile(r"\S+")
+# Split into word tokens and individual punctuation marks so entities adjacent to
+# punctuation (e.g. "(Netherlands)") still align to their spans in BIO output.
+_TOKEN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
 
 def to_jsonl(examples: list[Example]) -> str:

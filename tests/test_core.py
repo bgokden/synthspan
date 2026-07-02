@@ -131,6 +131,16 @@ def test_conll_bio():
     assert "B-CITY" in tags and "I-CITY" in tags  # multi-token entity
 
 
+def test_conll_handles_punctuation_adjacent_entities():
+    # "(Netherlands)" must still tag Netherlands, not swallow it as O
+    ex = Template("held in {CITY} ({COUNTRY}).").fill({"CITY": "Rotterdam", "COUNTRY": "Netherlands"})
+    rows = [ln.split() for ln in to_conll([ex]).strip().splitlines()]
+    tags = {tok: tag for tok, tag in rows}
+    assert tags["Rotterdam"] == "B-CITY"
+    assert tags["Netherlands"] == "B-COUNTRY"
+    assert tags["("] == "O" and tags[")"] == "O"
+
+
 def test_spacy_format():
     exs = generate(GAZ, TEMPLATES, 3, rng=random.Random(0))
     data = json.loads(to_spacy(exs))
