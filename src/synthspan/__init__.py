@@ -1,6 +1,7 @@
 """synthspan — generate synthetic labeled-span data for NER / token classification."""
 
 from synthspan.balance import cap_per_value, dedupe, label_counts, value_counts
+from synthspan.cluster import cluster_balance
 from synthspan.gazetteer import Gazetteer
 from synthspan.generate import generate
 from synthspan.template import Template
@@ -21,6 +22,7 @@ __all__ = [
     "cap_per_value",
     "label_counts",
     "value_counts",
+    "cluster_balance",
     "to_jsonl",
     "to_conll",
     "to_spacy",

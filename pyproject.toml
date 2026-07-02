@@ -17,6 +17,8 @@ dependencies = []  # zero runtime dependencies — pure standard library
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# LLM few-shot mode via a local GGUF model. Ollama needs no Python dep (HTTP).
+llama-cpp = ["llama-cpp-python>=0.2"]
 
 [project.urls]
 Homepage = "https://github.com/bgokden/synthspan"

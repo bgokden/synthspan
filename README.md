@@ -96,6 +96,49 @@ Pick the mode that matches your template's meaning. On the CLI: add
 only distinct texts (note: after typo augmentation most texts are already
 unique).
 
+## LLM few-shot mode (optional)
+
+Want more natural variety than templates? Use a **local** model with **structured
+output**. The model *selects* a coherent combination from your gazetteer and
+writes a sentence; synthspan aligns the entities back to exact spans — **the model
+never emits offsets**, so spans can't be hallucinated.
+
+Default backend is [Ollama](https://ollama.com) (no Python dependency — just an
+HTTP call to localhost):
+
+```bash
+ollama pull llama3.1
+```
+
+```python
+import random
+from synthspan import Gazetteer
+from synthspan.llm import OllamaBackend, llm_generate
+
+gaz = Gazetteer.from_csv("examples/entities.csv")
+backend = OllamaBackend(model="llama3.1")   # local, JSON-schema-constrained output
+
+data = llm_generate(gaz, backend, n=500, rng=random.Random(0), skip_empty=True)
+print(data[0].text, data[0].entities())
+```
+
+Backends: `OllamaBackend` (local HTTP, zero deps) · `LlamaCppBackend` (GGUF grammars,
+`pip install synthspan[llama-cpp]`) · or implement `complete(prompt, schema) -> dict`
+for vLLM / any OpenAI-compatible endpoint. `FakeBackend` ships for offline tests.
+
+## Diversity balancing (optional)
+
+Count-based balancing (`cap_per_value`) evens out *values*; semantic balancing
+evens out *phrasings*. Bring any local embedder and cluster — pure-Python k-means,
+zero dependencies:
+
+```python
+from synthspan import cluster_balance
+
+embed = lambda text: my_local_model.encode(text)   # -> list[float]
+balanced = cluster_balance(data, embed, k=8)        # even coverage across 8 clusters
+```
+
 ## How it works
 
 1. **Gazetteer** — typed, linked entity records (keeps `(city, country)` consistent).
@@ -122,8 +165,9 @@ you can train a standard token classifier without hand annotation.
 
 ## Roadmap
 
-- **LLM few-shot mode** — pass example records and let an LLM generate more natural
-  variations (planned as an optional extra).
+- More augmenters (casing, punctuation, OCR-style noise, unicode confusables).
+- Direct spaCy `DocBin` / Hugging Face `datasets` export.
+- Optional entity normalization (link a surface form to its canonical value).
 
 ## Development
 
