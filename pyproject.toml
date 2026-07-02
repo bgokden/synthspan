@@ -1,0 +1,37 @@
+[project]
+name = "synthspan"
+version = "0.1.0"
+description = "Generate synthetic labeled-span data for NER / token classification — from templates + gazetteers, with balancing and typo augmentation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Berk Gökden", email = "berk@primaxiom.ai" }]
+keywords = ["nlp", "ner", "token-classification", "synthetic-data", "data-augmentation", "labeled-data", "dataset", "gazetteer"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []  # zero runtime dependencies — pure standard library
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/bgokden/synthspan"
+Author = "https://berkgokden.com"
+
+[project.scripts]
+synthspan = "synthspan.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/synthspan"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
