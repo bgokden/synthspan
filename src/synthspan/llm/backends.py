@@ -62,17 +62,26 @@ class LlamaCppBackend:
     Install ``synthspan[llama-cpp]``. Runs in-process (Metal on macOS).
     """
 
-    def __init__(self, model_path: str, temperature: float = 0.8, n_ctx: int = 4096, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        model_path: str,
+        temperature: float = 0.8,
+        n_ctx: int = 4096,
+        max_tokens: int = 256,
+        **kwargs: Any,
+    ) -> None:
         from llama_cpp import Llama  # lazy import — optional dependency
 
         self._llm = Llama(model_path=model_path, n_ctx=n_ctx, verbose=False, **kwargs)
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
     def complete(self, prompt: str, schema: dict[str, Any]) -> dict[str, Any]:
         resp = self._llm.create_chat_completion(
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object", "schema": schema},
             temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
         return json.loads(resp["choices"][0]["message"]["content"])
 

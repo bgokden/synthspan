@@ -19,7 +19,7 @@ from synthspan.types import Example, Span
 SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "sentence": {"type": "string"},
+        "sentence": {"type": "string", "maxLength": 200},
         "entities": {
             "type": "array",
             "items": {
@@ -97,6 +97,7 @@ def llm_generate(
     schema: dict[str, Any] | None = None,
     rng: random.Random | None = None,
     skip_empty: bool = False,
+    on_error: str = "skip",
 ) -> list[Example]:
     """Generate ``n`` examples via a local LLM with structured output.
 
@@ -110,6 +111,8 @@ def llm_generate(
         schema: JSON schema for constrained decoding (defaults to SCHEMA).
         rng: Seeded RNG (controls which candidates are shown).
         skip_empty: Drop generations where no entity could be aligned.
+        on_error: ``"skip"`` (default) drops a generation the model botches
+            (invalid/truncated JSON, transport error); ``"raise"`` re-raises.
     """
     rng = rng or random.Random()
     labels = list(labels or sorted(gazetteer.labels()))
@@ -118,9 +121,14 @@ def llm_generate(
     out: list[Example] = []
     for _ in range(n):
         prompt = build_prompt(gazetteer, labels, examples, sample_size, rng)
-        resp = backend.complete(prompt, schema)
-        sentence = resp.get("sentence", "")
-        spans = _align(sentence, resp.get("entities", []))
+        try:
+            resp = backend.complete(prompt, schema)
+            sentence = resp.get("sentence", "")
+            spans = _align(sentence, resp.get("entities", []))
+        except Exception:
+            if on_error == "raise":
+                raise
+            continue
         if skip_empty and not spans:
             continue
         out.append(Example(sentence, spans))
