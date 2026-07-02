@@ -40,20 +40,28 @@ jobs:
           python -m pip install --upgrade pip pytest huggingface_hub
           pip install llama-cpp-python \
             --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-      - name: Download tiny GGUF model
+      - name: Fetch tiny GGUF (release asset, then HF fallback; best-effort)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          set +e
+          URL="https://github.com/${{ github.repository }}/releases/download/ci-assets/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+          curl -fsSL "$URL" -o model.gguf
+          if [ -s model.gguf ]; then
+            echo "SYNTHSPAN_GGUF=$PWD/model.gguf" >> "$GITHUB_ENV"
+            echo "model: fetched from release asset"; exit 0
+          fi
           python - <<'PY'
           import os
-          from huggingface_hub import hf_hub_download
-          path = hf_hub_download(
-              "bartowski/SmolLM2-135M-Instruct-GGUF",
-              "SmolLM2-135M-Instruct-Q4_K_M.gguf",
-          )
-          with open(os.environ["GITHUB_ENV"], "a") as fh:
-              fh.write(f"SYNTHSPAN_GGUF={path}\n")
-          print("model:", path)
+          try:
+              from huggingface_hub import hf_hub_download
+              p = hf_hub_download("bartowski/SmolLM2-135M-Instruct-GGUF", "SmolLM2-135M-Instruct-Q4_K_M.gguf")
+              open(os.environ["GITHUB_ENV"], "a").write(f"SYNTHSPAN_GGUF={p}\n")
+              print("model: fetched from Hugging Face")
+          except Exception as e:
+              print("model unavailable (integration test will skip):", e)
           PY
-      - name: Run llama-cpp integration test
-        run: pytest tests/test_integration.py -k llama_cpp -q
+      - name: Run llama-cpp integration test (skips if no model)
+        run: pytest tests/test_integration.py -k llama_cpp -q -rs
         env:
           PYTHONPATH: src
