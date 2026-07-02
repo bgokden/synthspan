@@ -1,8 +1,12 @@
 # One template per line. {LABEL} slots are filled from the gazetteer.
 # Blank lines and lines starting with # are ignored.
-I flew from {CITY} to visit {COUNTRY}.
-{CITY} is a beautiful city in {COUNTRY}.
-We drove through {CITY} on our way across {COUNTRY}.
-Booked a hotel in {CITY}, {COUNTRY} for the weekend.
+#
+# These are CO-LOCATION templates: the CITY is IN the COUNTRY. They pair with
+# linked records (the default mode), so every sentence stays factually correct
+# (e.g. "Amsterdam, Netherlands" — never "Amsterdam, France").
+{CITY} is a city in {COUNTRY}.
+We spent a few days in {CITY}, {COUNTRY}.
 The conference will be held in {CITY} ({COUNTRY}) this year.
-She grew up in {CITY} before moving elsewhere in {COUNTRY}.
+She grew up in {CITY}, {COUNTRY}.
+Our new office in {CITY}, {COUNTRY} is hiring.
+I booked a hotel in {CITY}, {COUNTRY} for the weekend.

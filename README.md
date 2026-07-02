@@ -56,22 +56,45 @@ Output formats: `jsonl` (default), `conll` (BIO), `spacy`.
 import random
 from synthspan import Gazetteer, Template, generate, augment, dedupe, to_jsonl
 
-gaz = Gazetteer.from_records([
-    {"CITY": "Amsterdam", "COUNTRY": "Netherlands"},
-    {"CITY": "Paris", "COUNTRY": "France"},
-])
-templates = [Template("I flew from {CITY} to {COUNTRY}.")]
+# A gazetteer of linked (city -> its own country) records. Bring your own list;
+# the more pairs, the more variety. 12 rows ship in examples/entities.csv.
+gaz = Gazetteer.from_csv("examples/entities.csv")
+
+# CO-LOCATION templates: the city is IN the country, so linked pairs stay correct.
+templates = [
+    Template("{CITY} is a city in {COUNTRY}."),
+    Template("We spent a few days in {CITY}, {COUNTRY}."),
+    Template("The conference will be held in {CITY} ({COUNTRY}) this year."),
+]
 
 rng = random.Random(42)
-data = generate(gaz, templates, n=5000, rng=rng, balanced=True)
-data = dedupe(data)
-data = augment(data, rate=0.05, rng=rng)   # spans stay correct
+data = generate(gaz, templates, n=2000, rng=rng)  # linked (default): city + ITS country
+data = augment(data, rate=0.06, rng=rng)           # typos add surface variety; spans stay correct
+data = dedupe(data)                                # drop exact duplicates (post-typo)
 
 print(data[0].entities())   # [('Amsterdam', 'CITY'), ('Netherlands', 'COUNTRY')]
 open("data.jsonl", "w").write(to_jsonl(data))
 ```
 
 Each example is `{"text": ..., "spans": [{"start", "end", "label", "text"}, ...]}`.
+Distinct base sentences ≈ records × templates; **typos multiply the surface
+variety**, and a large gazetteer scales it up — that's how a short list becomes a
+lot of labeled data.
+
+### Linked vs. independent slots
+
+- **`linked=True` (default)** — every slot in a template is filled from one
+  record, so co-located mentions stay consistent. Use for templates where the
+  city is *in* that country: `"{CITY}, {COUNTRY}"` → *Amsterdam, Netherlands*.
+  Unique outputs ≈ records × templates.
+- **`linked=False`** — each slot is sampled independently. Use for relational
+  templates where the places differ: `"from {CITY} to {COUNTRY}"` → *Amsterdam →
+  Japan*. Unique outputs ≈ cities × countries × templates (lots of cheap data).
+
+Pick the mode that matches your template's meaning. On the CLI: add
+`--independent` for the second mode. Use `dedupe()` / `--dedupe` when you want
+only distinct texts (note: after typo augmentation most texts are already
+unique).
 
 ## How it works
 
@@ -80,6 +103,22 @@ Each example is `{"text": ..., "spans": [{"start", "end", "label", "text"}, ...]
 3. **Balance** — even coverage, de-duplication, per-value caps.
 4. **Augment** — realistic keyboard-aware typos, with span-preserving recomputation.
 5. **Write** — JSONL / CoNLL-BIO / spaCy.
+
+## Background: what's a gazetteer?
+
+A **gazetteer** is a curated list of known entity names — originally a
+geographical directory of place names, and in NLP any dictionary of entity
+surface forms (cities, drugs, companies, tickers, genes…). Gazetteers are a
+long-standing signal for **named entity recognition (NER)**:
+
+- [Towards Improving Neural Named Entity Recognition with Gazetteers](https://aclanthology.org/P19-1524/) — Liu et al., ACL 2019
+- [Gazetteer-Enhanced Attentive Neural Networks for NER](https://aclanthology.org/D19-1646/) — Lin et al., EMNLP-IJCNLP 2019
+- [Soft Gazetteers for Low-Resource Named Entity Recognition](https://arxiv.org/abs/2005.01866) — Rijhwani et al., ACL 2020
+- [Gazetteer — Wikipedia](https://en.wikipedia.org/wiki/Gazetteer)
+
+Those works feed a gazetteer *into* the model. `synthspan` uses it the other way
+around: a gazetteer + templates *generate* the labeled training data itself — so
+you can train a standard token classifier without hand annotation.
 
 ## Roadmap
 

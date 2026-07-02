@@ -20,11 +20,14 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     gaz = Gazetteer.from_csv(args.entities)
     templates = Template.load(args.templates)
 
-    examples = generate(gaz, templates, args.n, rng=rng, balanced=args.balanced)
-    if args.dedupe:
-        examples = dedupe(examples)
+    examples = generate(
+        gaz, templates, args.n, rng=rng, balanced=args.balanced, linked=not args.independent
+    )
+    # Augment first so typos create surface variety, THEN dedupe exact duplicates.
     if args.typo_rate > 0:
         examples = augment(examples, rate=args.typo_rate, rng=rng, typo_entities=args.typo_entities)
+    if args.dedupe:
+        examples = dedupe(examples)
 
     write(examples, args.out, fmt=args.format)
 
@@ -48,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--typo-rate", type=float, default=0.0, help="Per-word typo probability (0-1)")
     g.add_argument("--typo-entities", action="store_true", help="Allow typos inside entity spans")
     g.add_argument("--balanced", action="store_true", help="Even coverage of templates/records")
+    g.add_argument(
+        "--independent",
+        action="store_true",
+        help="Sample each slot independently (any city with any country) instead of linked records",
+    )
     g.add_argument("--dedupe", action="store_true", help="Drop duplicate texts")
     g.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     g.set_defaults(func=_cmd_generate)

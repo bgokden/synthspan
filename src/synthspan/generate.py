@@ -15,11 +15,23 @@ def generate(
     n: int,
     rng: random.Random | None = None,
     balanced: bool = False,
+    linked: bool = True,
 ) -> list[Example]:
     """Generate ``n`` examples.
 
-    With ``balanced=True`` the generator cycles deterministically through
-    templates and records for even coverage; otherwise it samples randomly.
+    Args:
+        gazetteer: Source of entity values.
+        templates: Templates to fill.
+        n: Number of examples to produce.
+        rng: Seeded RNG for reproducibility.
+        balanced: Cycle deterministically through templates (and, when
+            ``linked``, records) for even coverage instead of sampling randomly.
+        linked: When ``True`` (default) every slot in a template is filled from a
+            single record, so co-located mentions stay consistent
+            (``"{CITY}, {COUNTRY}"`` → *Amsterdam, Netherlands*). When ``False``
+            each slot is sampled independently from its own value pool — right for
+            relational templates (``"from {CITY} to {COUNTRY}"`` → *Amsterdam →
+            Japan*) and for combinatorial volume (cities × countries).
     """
     if n < 0:
         raise ValueError("n must be >= 0")
@@ -29,11 +41,18 @@ def generate(
 
     out: list[Example] = []
     for i in range(n):
-        if balanced:
-            template = templates[i % len(templates)]
-            record = gazetteer.records[i % len(gazetteer.records)]
+        template = templates[i % len(templates)] if balanced else rng.choice(templates)
+        if linked:
+            record = (
+                gazetteer.records[i % len(gazetteer.records)]
+                if balanced
+                else gazetteer.sample_record(rng)
+            )
         else:
-            template = rng.choice(templates)
-            record = gazetteer.sample_record(rng)
+            # dict.fromkeys keeps unique slot labels in first-seen order
+            record = {
+                label: gazetteer.sample_value(label, rng)
+                for label in dict.fromkeys(template.slots())
+            }
         out.append(template.fill(record, gazetteer, rng))
     return out

@@ -47,6 +47,25 @@ def test_linked_records_stay_consistent():
         assert {"CITY": city, "COUNTRY": country} in GAZ.records
 
 
+def test_independent_sampling_mixes_places():
+    rng = random.Random(0)
+    tmpl = [Template("from {CITY} to {COUNTRY}.")]
+    exs = generate(GAZ, tmpl, 100, rng=rng, linked=False)
+    combos = {
+        (
+            next(t for t, l in e.entities() if l == "CITY"),
+            next(t for t, l in e.entities() if l == "COUNTRY"),
+        )
+        for e in exs
+    }
+    record_combos = {(r["CITY"], r["COUNTRY"]) for r in GAZ.records}
+    # independent mode must produce at least one cross combo not in the records
+    assert combos - record_combos
+    # ...but every value is still a valid gazetteer value
+    cities, countries = set(GAZ.values("CITY")), set(GAZ.values("COUNTRY"))
+    assert all(c in cities and k in countries for c, k in combos)
+
+
 def test_generate_is_deterministic():
     a = generate(GAZ, TEMPLATES, 20, rng=random.Random(42))
     b = generate(GAZ, TEMPLATES, 20, rng=random.Random(42))
