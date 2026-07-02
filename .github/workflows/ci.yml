@@ -21,7 +21,39 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install
         run: python -m pip install --upgrade pip pytest
-      - name: Run tests
+      - name: Run tests (offline; integration tests skip)
         run: pytest -q
+        env:
+          PYTHONPATH: src
+
+  llm:
+    # Real structured-output round-trip via llama-cpp + a tiny GGUF (Ollama can't
+    # run in CI, so llama-cpp is the CI-tested endpoint).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install llama-cpp-python (CPU wheel), hub, pytest
+        run: |
+          python -m pip install --upgrade pip pytest huggingface_hub
+          pip install llama-cpp-python \
+            --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+      - name: Download tiny GGUF model
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import hf_hub_download
+          path = hf_hub_download(
+              "bartowski/SmolLM2-135M-Instruct-GGUF",
+              "SmolLM2-135M-Instruct-Q4_K_M.gguf",
+          )
+          with open(os.environ["GITHUB_ENV"], "a") as fh:
+              fh.write(f"SYNTHSPAN_GGUF={path}\n")
+          print("model:", path)
+          PY
+      - name: Run llama-cpp integration test
+        run: pytest tests/test_integration.py -k llama_cpp -q
         env:
           PYTHONPATH: src
